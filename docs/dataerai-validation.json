@@ -1,0 +1,54 @@
+{
+  "collection_url": "https://beta.dataerai.com/p/f64a673b-e254-4130-869a-3129e63c46a9/1a7efe28-2ade-46a1-85ea-f0e499d2165e",
+  "validated_code_commit": "aa0ad8287ea54c62e9b2618d006a3e286c6a972b",
+  "local_tests_passed": 28,
+  "ci_url": "https://github.com/jagar2/Rheed-HW/actions/runs/35106711733",
+  "completed_run": {
+    "repository": "Rheed-HW",
+    "run_id": "3f8b9296-27b2-4530-8e77-f44dd006e200",
+    "run_asset_id": "839fe2b9-ef22-4c96-a5a2-177038060603",
+    "summary_asset_id": "7e6f2af8-1fda-4b08-a8a6-f8369fcc7c51",
+    "cell_count": 6,
+    "asset_count": 39,
+    "relationship_count": 50,
+    "status": "completed",
+    "notebook": "Hardware_Provenance.ipynb",
+    "git": {
+      "commit": "8ad709b14ea878d66404e1f0605582901ab79d08",
+      "dirty_at_start": false,
+      "repository": "https://github.com/jagar2/Rheed-HW.git"
+    },
+    "verified_assets": 39
+  },
+  "download_verification": {
+    "repository": "Rheed-HW",
+    "run_id": "3f8b9296-27b2-4530-8e77-f44dd006e200",
+    "artifacts": [
+      {
+        "asset_id": "0e463953-1949-47ee-a5cd-cc660d657a2a",
+        "name": ".vcd",
+        "sha256": "29ea693656440661f330e241b6ddcd4bd874e548a01983265564ec22e0156048",
+        "byte_identity": "passed"
+      },
+      {
+        "asset_id": "44425f23-5c9d-4b38-b88c-a2a6d6eb159d",
+        "name": ".bit",
+        "sha256": "df79ac534bc45904705076cd41acb475e3d3236d8e844b950bd738c3c60cda3d",
+        "byte_identity": "passed"
+      },
+      {
+        "asset_id": "06eb887a-adf2-4ab7-a526-95ecea2a11e1",
+        "name": ".ipynb",
+        "sha256": "24c6d5852181b43d0fdc0fa285acd509973692b009f8c760cfab01a1276d2c4b",
+        "byte_identity": "passed"
+      }
+    ]
+  },
+  "limitations": [
+    "Generated notebooks executed with recorded smoke profile: 8 training, 4 validation, 4 test examples and 1 epoch; not a scientific accuracy evaluation.",
+    "Original experimental HDF5 inputs are unavailable. Real_Flow attempts retain missing-file errors.",
+    "Hardware validation covers actual nms_top5 RTL simulation and an existing bitstream. No Vivado/Vitis build or physical camera acquisition was performed.",
+    "Two failed upload placeholders from interrupted setup attempts remain as history; recovered executed notebooks and terminal failure summaries preserve those attempts. They are not counted as saved outputs.",
+    "For consolidated server storage, use the Console download action or the authorized files[].download_url from transfer initiation. The pinned beta SDK may try an obsolete prefix when downloading."
+  ]
+}
