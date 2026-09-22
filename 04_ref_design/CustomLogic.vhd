@@ -302,7 +302,7 @@ architecture behav of CustomLogic is
   
   component TestImageSource is
    generic (
-      ENABLE            :     boolean := true;
+      ENABLE            :     boolean := false;
       STREAM_DATA_WIDTH :     natural := 128;
       WORDS_PER_FRAME   :     natural := 6400;
       INIT_FILE         :     string  := "test_image.mem"
