@@ -268,8 +268,8 @@ architecture behav of CustomLogic is
       ap_idle            : out std_logic
     );
   end component gaussian_0;
-
-  component nms_top5 is
+  
+  component nms_top3 is
     generic (
       GRID_W   : integer := 40;
       GRID_H   : integer := 40;
@@ -285,20 +285,45 @@ architecture behav of CustomLogic is
       top_val_0         : out std_logic_vector(15 downto 0);
       top_val_1         : out std_logic_vector(15 downto 0);
       top_val_2         : out std_logic_vector(15 downto 0);
-      top_val_3         : out std_logic_vector(15 downto 0);
-      top_val_4         : out std_logic_vector(15 downto 0);
       top_x_0           : out std_logic_vector(5 downto 0);
       top_x_1           : out std_logic_vector(5 downto 0);
       top_x_2           : out std_logic_vector(5 downto 0);
-      top_x_3           : out std_logic_vector(5 downto 0);
-      top_x_4           : out std_logic_vector(5 downto 0);
       top_y_0           : out std_logic_vector(5 downto 0);
       top_y_1           : out std_logic_vector(5 downto 0);
-      top_y_2           : out std_logic_vector(5 downto 0);
-      top_y_3           : out std_logic_vector(5 downto 0);
-      top_y_4           : out std_logic_vector(5 downto 0)
+      top_y_2           : out std_logic_vector(5 downto 0)
     );
-  end component nms_top5;
+  end component nms_top3;
+
+--  component nms_top5 is
+--    generic (
+--      GRID_W   : integer := 40;
+--      GRID_H   : integer := 40;
+--      MAX_CAND : integer := 256
+--    );
+--    port (
+--      clk               : in  std_logic;
+--      rst_n             : in  std_logic;
+--      tvalid            : in  std_logic;
+--      tdata             : in  std_logic_vector(15 downto 0);
+--      tlast             : in  std_logic;
+--      done              : out std_logic;
+--      top_val_0         : out std_logic_vector(15 downto 0);
+--      top_val_1         : out std_logic_vector(15 downto 0);
+--      top_val_2         : out std_logic_vector(15 downto 0);
+--      top_val_3         : out std_logic_vector(15 downto 0);
+--      top_val_4         : out std_logic_vector(15 downto 0);
+--      top_x_0           : out std_logic_vector(5 downto 0);
+--      top_x_1           : out std_logic_vector(5 downto 0);
+--      top_x_2           : out std_logic_vector(5 downto 0);
+--      top_x_3           : out std_logic_vector(5 downto 0);
+--      top_x_4           : out std_logic_vector(5 downto 0);
+--      top_y_0           : out std_logic_vector(5 downto 0);
+--      top_y_1           : out std_logic_vector(5 downto 0);
+--      top_y_2           : out std_logic_vector(5 downto 0);
+--      top_y_3           : out std_logic_vector(5 downto 0);
+--      top_y_4           : out std_logic_vector(5 downto 0)
+--    );
+--  end component nms_top5;
   
   component TestImageSource is
    generic (
@@ -419,18 +444,18 @@ architecture behav of CustomLogic is
   signal nms_top_val_0         : std_logic_vector(15 downto 0);
   signal nms_top_val_1         : std_logic_vector(15 downto 0);
   signal nms_top_val_2         : std_logic_vector(15 downto 0);
-  signal nms_top_val_3         : std_logic_vector(15 downto 0);
-  signal nms_top_val_4         : std_logic_vector(15 downto 0);
+--  signal nms_top_val_3         : std_logic_vector(15 downto 0);
+--  signal nms_top_val_4         : std_logic_vector(15 downto 0);
   signal nms_top_x_0           : std_logic_vector(5 downto 0);
   signal nms_top_x_1           : std_logic_vector(5 downto 0);
   signal nms_top_x_2           : std_logic_vector(5 downto 0);
-  signal nms_top_x_3           : std_logic_vector(5 downto 0);
-  signal nms_top_x_4           : std_logic_vector(5 downto 0);
+--  signal nms_top_x_3           : std_logic_vector(5 downto 0);
+--  signal nms_top_x_4           : std_logic_vector(5 downto 0);
   signal nms_top_y_0           : std_logic_vector(5 downto 0);
   signal nms_top_y_1           : std_logic_vector(5 downto 0);
   signal nms_top_y_2           : std_logic_vector(5 downto 0);
-  signal nms_top_y_3           : std_logic_vector(5 downto 0);
-  signal nms_top_y_4           : std_logic_vector(5 downto 0);
+--  signal nms_top_y_3           : std_logic_vector(5 downto 0);
+--  signal nms_top_y_4           : std_logic_vector(5 downto 0);
 
   -- Crop sequencer
   signal crop_state           : crop_state_t                                     := XC_IDLE;
@@ -576,10 +601,10 @@ begin
           buf_coords(to_integer(folo_res_ptr))(1).cy    <= unsigned(nms_top_y_1);
           buf_coords(to_integer(folo_res_ptr))(2).cx    <= unsigned(nms_top_x_2);
           buf_coords(to_integer(folo_res_ptr))(2).cy    <= unsigned(nms_top_y_2);
-          buf_coords(to_integer(folo_res_ptr))(3).cx    <= unsigned(nms_top_x_3);
-          buf_coords(to_integer(folo_res_ptr))(3).cy    <= unsigned(nms_top_y_3);
-          buf_coords(to_integer(folo_res_ptr))(4).cx    <= unsigned(nms_top_x_4);
-          buf_coords(to_integer(folo_res_ptr))(4).cy    <= unsigned(nms_top_y_4);
+--          buf_coords(to_integer(folo_res_ptr))(3).cx    <= unsigned(nms_top_x_3);
+--          buf_coords(to_integer(folo_res_ptr))(3).cy    <= unsigned(nms_top_y_3);
+--          buf_coords(to_integer(folo_res_ptr))(4).cx    <= unsigned(nms_top_x_4);
+--          buf_coords(to_integer(folo_res_ptr))(4).cy    <= unsigned(nms_top_y_4);
           folo_res_ptr                                  <= inc3(folo_res_ptr);
         end if;
         
@@ -928,7 +953,38 @@ begin
   --   5 strongest peaks with a minimum pairwise separation (no frame buffer).
   --   Same det_list-shaped output as pDetect; swap in to replace top-N-by-value.
   ----------------------------------------------------------------------------  
-  uNms: component nms_top5
+--  uNms: component nms_top5
+--  generic map (
+--    GRID_W   => GRID_DIM,
+--    GRID_H   => GRID_DIM,
+--    MAX_CAND => 256
+--  )
+--  port map (
+--    clk               => clk250,
+--    rst_n             => s_axis_resetn,
+--    tvalid            => nms_in_tvalid,
+--    tdata             => nms_in_tdata,
+--    tlast             => nms_in_tlast,
+--    done              => nms_done,
+--    top_val_0         => nms_top_val_0,
+--    top_val_1         => nms_top_val_1,
+--    top_val_2         => nms_top_val_2,
+--    top_val_3         => nms_top_val_3,
+--    top_val_4         => nms_top_val_4,
+--    top_x_0           => nms_top_x_0,
+--    top_x_1           => nms_top_x_1,
+--    top_x_2           => nms_top_x_2,
+--    top_x_3           => nms_top_x_3,
+--    top_x_4           => nms_top_x_4,
+--    top_y_0           => nms_top_y_0,
+--    top_y_1           => nms_top_y_1,
+--    top_y_2           => nms_top_y_2,
+--    top_y_3           => nms_top_y_3,
+--    top_y_4           => nms_top_y_4
+--  );
+
+
+  uNms: component nms_top3
   generic map (
     GRID_W   => GRID_DIM,
     GRID_H   => GRID_DIM,
@@ -944,19 +1000,14 @@ begin
     top_val_0         => nms_top_val_0,
     top_val_1         => nms_top_val_1,
     top_val_2         => nms_top_val_2,
-    top_val_3         => nms_top_val_3,
-    top_val_4         => nms_top_val_4,
     top_x_0           => nms_top_x_0,
     top_x_1           => nms_top_x_1,
     top_x_2           => nms_top_x_2,
-    top_x_3           => nms_top_x_3,
-    top_x_4           => nms_top_x_4,
     top_y_0           => nms_top_y_0,
     top_y_1           => nms_top_y_1,
-    top_y_2           => nms_top_y_2,
-    top_y_3           => nms_top_y_3,
-    top_y_4           => nms_top_y_4
+    top_y_2           => nms_top_y_2
   );
+  
   
   ----------------------------------------------------------------------------
   -- Detector : streaming top-5 argmax over the 1600 unsigned FOLO values, in
