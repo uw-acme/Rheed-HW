@@ -89,3 +89,11 @@ Thumbs.db
 # Optional: keep simulation configs if you care about them
 # -----------------------------------------------------------------------------
 #!*.wcfg
+# Local execution evidence and authenticated provenance state
+.dataerai/
+.venv/
+__pycache__/
+.pytest_cache/
+Utils/
+Models/
+*_hls4ml_*/
