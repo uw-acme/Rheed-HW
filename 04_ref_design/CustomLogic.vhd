@@ -201,6 +201,13 @@ architecture behav of CustomLogic is
   constant GRID_AWIDTH        : natural                                          := integer(ceil(log2(real(GRID_DIM))));           -- 6  (cell col/row 0..39)
   constant CROP_AWIDTH        : natural                                          := integer(ceil(log2(real(CROP_DIM))));           -- 6  (crop col/row 0..47)
   constant GAUS_SLOT_BITS     : natural                                          := integer(ceil(log2(real(NUM_DET_MAX))));        -- 3
+  
+  -- Normalization
+  constant PIXEL_NORM         : natural                                          := 256;  -- pixel / 256 (shift amount)
+  constant NORM_SHIFT         : natural                                          := integer(ceil(log2(real(PIXEL_NORM))));  -- 8
+  constant FOLO_FRAC          : natural                                          := 10;   -- fractional bits of folo
+  constant GAUS_FRAC          : natural                                          := 10;   -- fractional bits of gaus
+
 
   ----------------------------------------------------------------------------
   -- Types
@@ -356,6 +363,20 @@ architecture behav of CustomLogic is
       return v + 1;
     end if;
   end function inc3;
+  
+  -- pixel / PIXEL_NORM
+  function normalization_pix (pix : std_logic_vector; width : natural; frac : natural)
+    return std_logic_vector is
+    variable v : unsigned(width - 1 downto 0);
+  begin
+    v := resize(unsigned(pix), width);
+    if frac >= NORM_SHIFT then
+      v := shift_left(v, frac - NORM_SHIFT);
+    else
+      v := shift_right(v, NORM_SHIFT - frac);
+    end if;
+    return std_logic_vector(v);
+  end function normalization_pix;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -750,7 +771,7 @@ begin
 
   uTestImg: component TestImageSource
   generic map (
-    ENABLE            => true,              -- false => compiles away entirely
+    ENABLE            => false,              -- false => compiles away entirely
     STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
     WORDS_PER_FRAME   => WORDS_PER_FRAME,
     INIT_FILE         => "test_image.mem"
@@ -839,7 +860,8 @@ begin
             
             when F_LOAD =>
               cur_word       <= fb_folo_rd_data_r;                                                                     -- was fb_folo_rd_data
-              folo_in_tdata  <= std_logic_vector(resize(unsigned(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0)), FOLO_OUT_WIDTH));
+              --folo_in_tdata  <= std_logic_vector(resize(unsigned(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0)), FOLO_OUT_WIDTH));
+              folo_in_tdata  <= normalization_pix(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0), FOLO_OUT_WIDTH, FOLO_FRAC);
               folo_in_tvalid <= '1';
               feed_pix_cnt   <= to_unsigned(WORDS_PER_STREAM - 1, feed_pix_cnt'length);
               feed_state     <= F_RUN;
@@ -857,7 +879,8 @@ begin
                   feed_state                        <= F_WAIT;
                 end if;
               else
-                folo_in_tdata                       <= std_logic_vector(resize(unsigned(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL)), FOLO_OUT_WIDTH));
+                --folo_in_tdata                       <= std_logic_vector(resize(unsigned(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL)), FOLO_OUT_WIDTH));
+                folo_in_tdata                       <= normalization_pix(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL), FOLO_OUT_WIDTH, FOLO_FRAC);
                 cur_word                            <= std_logic_vector(shift_right(unsigned(cur_word), BITS_PER_PIXEL));
                 feed_pix_cnt                        <= feed_pix_cnt - 1;
               end if;
@@ -1291,7 +1314,8 @@ begin
               else
                 pix8                                := (others => '0');
               end if;
-              gaus_in_tdata                         <= std_logic_vector(resize(unsigned(pix8), GAUS_IN_WIDTH));
+              --gaus_in_tdata                         <= std_logic_vector(resize(unsigned(pix8), GAUS_IN_WIDTH));
+              gaus_in_tdata                         <= normalization_pix(pix8, GAUS_IN_WIDTH, GAUS_FRAC);
               gaus_in_tvalid                        <= '1';
               crop_state                            <= XC_DRIVE;
             end if; 
