@@ -269,6 +269,26 @@ architecture behav of CustomLogic is
     );
   end component gaussian_0;
 
+  component pre_gaus_normalizer is
+    generic (
+      CROP_PIXELS      : integer := 2304
+    );
+    port (
+      clk              : in  std_logic;
+      rst_n            : in  std_logic;
+      s_tvalid         : in  std_logic;
+      s_tready         : out std_logic;
+      s_pix            : in  std_logic_vector(7 downto 0);
+      s_inb            : in  std_logic;
+      m_tvalid         : out std_logic;
+      m_tready         : in  std_logic;
+      m_tdata          : out std_logic_vector(15 downto 0);
+      crop_stats_valid : out std_logic;
+      crop_min         : out std_logic_vector(7 downto 0);
+      crop_range       : out std_logic_vector(7 downto 0)
+    );
+  end component pre_gaus_normalizer;
+
   component nms_top5 is
     generic (
       GRID_W   : integer := 40;
@@ -461,9 +481,14 @@ architecture behav of CustomLogic is
   signal fb_folo_rd_data_r    : std_logic_vector(STREAM_DATA_WIDTH - 1 downto 0) := (others => '0');
   signal fb_crop_rd_data_r    : std_logic_vector(STREAM_DATA_WIDTH - 1 downto 0) := (others => '0');
 
-  -- Gaussian input buffer
-  signal gaus_in_post_buf_tdata        : std_logic_vector(GAUS_IN_WIDTH - 1 downto 0)     := (others => '0');
-  signal gaus_in_post_buf_tvalid       : std_logic                                        := '0';
+  -- Pre-gaussian normalizer (pCrop -> ping-pong buffer -> normalize -> GAUS)
+  signal gaus_in_inb          : std_logic                                        := '0';                                           -- 1 = in-bounds pixel, 0 = zero pad
+  signal norm_tvalid          : std_logic;
+  signal norm_tdata           : std_logic_vector(GAUS_IN_WIDTH - 1 downto 0);
+  signal gaus_core_tready     : std_logic;                                                                                         -- GAUS core TREADY (gaus_in_tready is now the normalizer's)
+  signal norm_stats_valid     : std_logic;
+  signal norm_crop_min        : std_logic_vector(7 downto 0);
+  signal norm_crop_range      : std_logic_vector(7 downto 0);
   
   -- Gaussian handshake
   signal gaus_in_tdata        : std_logic_vector(GAUS_IN_WIDTH - 1 downto 0)     := (others => '0');
@@ -1122,6 +1147,7 @@ begin
         cw_valid                                    <= '0';
         gaus_in_tvalid                              <= '0';
         gaus_in_tdata                               <= (others => '0');
+        gaus_in_inb                                 <= '0';
         crop_done                                   <= '0';
         req_word                                    <= (others => '0');
         req_byte                                    <= 0;
@@ -1241,6 +1267,7 @@ begin
                 pix8                                := (others => '0');
               end if;
               gaus_in_tdata                         <= std_logic_vector(resize(unsigned(pix8), GAUS_IN_WIDTH));
+              gaus_in_inb                           <= req_inb;
               gaus_in_tvalid                        <= '1';
               crop_state                            <= XC_DRIVE;
             end if; 
@@ -1304,30 +1331,39 @@ begin
   end process pCrop;
   
   ----------------------------------------------------------------------------
-  -- Gaussian input buffer : a pipelined stage for the Gaussian input so that
-  --   timing constaints are met.
+  -- Pre-gaussian normalizer : pCrop writes each crop into a ping-pong BRAM;
+  --   per-crop min/max of in-bounds pixels -> (p - min) / (max - min), pads
+  --   -> 0, exactly CROP_PIXELS beats per crop into GAUS. Replaces the old
+  --   pGausInput register (its delayed tvalid vs undelayed tready could drop
+  --   or duplicate beats under GAUS back-pressure).
   ----------------------------------------------------------------------------
-  pGausInput: process (clk250) is
-  begin
-    if rising_edge(clk250) then
-        if s_axis_resetn = '0' then
-            gaus_in_post_buf_tdata                           <= (others => '0');
-            gaus_in_post_buf_tvalid                          <= '0';
-        else
-            gaus_in_post_buf_tdata                           <= gaus_in_tdata;
-            gaus_in_post_buf_tvalid                          <= gaus_in_tvalid;
-       end if;
-    end if;
-  end process pGausInput;
+  uNorm: component pre_gaus_normalizer
+  generic map (
+    CROP_PIXELS      => CROP_PIXELS
+  )
+  port map (
+    clk              => clk250,
+    rst_n            => s_axis_resetn,
+    s_tvalid         => gaus_in_tvalid,
+    s_tready         => gaus_in_tready,
+    s_pix            => gaus_in_tdata(7 downto 0),
+    s_inb            => gaus_in_inb,
+    m_tvalid         => norm_tvalid,
+    m_tready         => gaus_core_tready,
+    m_tdata          => norm_tdata,
+    crop_stats_valid => norm_stats_valid,
+    crop_min         => norm_crop_min,
+    crop_range       => norm_crop_range
+  );
 
   ----------------------------------------------------------------------------
   -- Gaussian instance (free-running, wired identically to FOLO)
   ----------------------------------------------------------------------------
   uGaus: component gaussian_0
   port map (
-    InputLayer_TDATA   => gaus_in_post_buf_tdata,
-    InputLayer_TVALID  => gaus_in_post_buf_tvalid,
-    InputLayer_TREADY  => gaus_in_tready,
+    InputLayer_TDATA   => norm_tdata,
+    InputLayer_TVALID  => norm_tvalid,
+    InputLayer_TREADY  => gaus_core_tready,
     layer32_out_TDATA  => gaus_out_tdata,
     layer32_out_TVALID => gaus_out_tvalid,
     layer32_out_TREADY => '1',
