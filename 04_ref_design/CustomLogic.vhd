@@ -769,25 +769,25 @@ begin
   end process pCtrl;
 
 
-  uTestImg: component TestImageSource
-  generic map (
-    ENABLE            => false,              -- false => compiles away entirely
-    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
-    WORDS_PER_FRAME   => WORDS_PER_FRAME,
-    INIT_FILE         => "test_image.mem"
-  )
-  port map (
-    clk       => clk250,
-    rst_n     => s_axis_resetn,
-    sw_enable => testimg_en,
-    tvalid    => s_axis_tvalid,
-    tready    => m_axis_tready,
-    sof       => s_axis_tuser(0),
-    tdata_in  => s_axis_tdata,
-    tdata_out => s_axis_tdata_i,
-    injecting => open
-  );
-
+--  uTestImg: component TestImageSource
+--  generic map (
+--    ENABLE            => false,              -- false => compiles away entirely
+--    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
+--    WORDS_PER_FRAME   => WORDS_PER_FRAME,
+--    INIT_FILE         => "test_image.mem"
+--  )
+--  port map (
+--    clk       => clk250,
+--    rst_n     => s_axis_resetn,
+--    sw_enable => testimg_en,
+--    tvalid    => s_axis_tvalid,
+--    tready    => m_axis_tready,
+--    sof       => s_axis_tuser(0),
+--    tdata_in  => s_axis_tdata,
+--    tdata_out => s_axis_tdata_i,
+--    injecting => open
+--  );
+   s_axis_tdata_i <= s_axis_tdata;
 
 ----------------------------------------------------------------------------
 -- Read-data pipeline register : breaks the BRAM cascade (rd_data0/1/2 mux)
@@ -1538,7 +1538,6 @@ begin
   gaus_ovl_sel <= '1' when (gaus_armed = '1' and cur_idx >= to_unsigned(GAUS_OVL_START, FB_AWORD) and cur_idx < to_unsigned(GAUS_OVL_START + NUM_DET, FB_AWORD)) else '0';
 
   m_axis_tdata <= gaus_word when gaus_ovl_sel = '1' else res_rd_data when overlay_sel = '1' else s_axis_tdata_i;
-
   -- Metadata passthrough
   m_mdata_StreamId                                  <= s_mdata_StreamId;
   m_mdata_SourceTag                                 <= s_mdata_SourceTag;
