@@ -769,25 +769,27 @@ begin
   end process pCtrl;
 
 
---  uTestImg: component TestImageSource
---  generic map (
---    ENABLE            => false,              -- false => compiles away entirely
---    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
---    WORDS_PER_FRAME   => WORDS_PER_FRAME,
---    INIT_FILE         => "test_image.mem"
---  )
---  port map (
---    clk       => clk250,
---    rst_n     => s_axis_resetn,
---    sw_enable => testimg_en,
---    tvalid    => s_axis_tvalid,
---    tready    => m_axis_tready,
---    sof       => s_axis_tuser(0),
---    tdata_in  => s_axis_tdata,
---    tdata_out => s_axis_tdata_i,
---    injecting => open
---  );
-   s_axis_tdata_i <= s_axis_tdata;
+  -- will not properly compile away unless fully commented out and the inout is just straight up connected after as seen below
+  -- this may not be entirely true but the compilation leads to more usage if left in
+  uTestImg: component TestImageSource
+  generic map (
+    ENABLE            => false,              -- false => compiles away entirely
+    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
+    WORDS_PER_FRAME   => WORDS_PER_FRAME,
+    INIT_FILE         => "test_image.mem"
+  )
+  port map (
+    clk       => clk250,
+    rst_n     => s_axis_resetn,
+    sw_enable => testimg_en,
+    tvalid    => s_axis_tvalid,
+    tready    => m_axis_tready,
+    sof       => s_axis_tuser(0),
+    tdata_in  => s_axis_tdata,
+    tdata_out => s_axis_tdata_i,
+    injecting => open
+  );
+--   s_axis_tdata_i <= s_axis_tdata;
 
 ----------------------------------------------------------------------------
 -- Read-data pipeline register : breaks the BRAM cascade (rd_data0/1/2 mux)

@@ -80,6 +80,12 @@ set_property QPLL1_LOCK_CFG_G3 16'h21E8 [get_cells -hierarchical -filter { PRIMI
 ####################################################################################
 
 
+
+####################################################################################
+# Constraints from file : 'CxlOcto_timing_common.xdc'
+####################################################################################
+
+
 set_property IOSTANDARD LVCMOS33 [get_ports perst_n]
 set_property IOSTANDARD LVCMOS33 [get_ports wake_n]
 create_generated_clock -name sys_clk_bufg -source [get_pins -hierarchical -filter {NAME =~ */refclk_ibuf/ODIV2}] -divide_by 1 [get_pins -hierarchical -filter {NAME =~ */pcie/inst/bufg_gt_sysclk/O}]

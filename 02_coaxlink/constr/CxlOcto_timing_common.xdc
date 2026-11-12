@@ -53,6 +53,12 @@
 ####################################################################################
 
 
+
+####################################################################################
+# Constraints from file : 'xpm_cdc_gray.tcl'
+####################################################################################
+
+
 create_clock -period 3.330 -name cxph_gth_clk -waveform {0.000 1.665} [get_ports cxph_gth_clk_p]
 set_multicycle_path -setup -from [get_pins */*/iMemorySizeChecker/SizeCheckDone_reg/C] 8
 set_multicycle_path -hold -end -from [get_pins */*/iMemorySizeChecker/SizeCheckDone_reg/C] 7
@@ -190,6 +196,6 @@ set_max_delay -datapath_only -from [get_pins */iTimestamp/toggle_clk125_reg/C] -
 set_max_delay -datapath_only -from [get_pins {*/iFanSpeedMeasure/FanPulseCounter_l_reg[*]/C}] -to [get_pins {*/iFanSpeedMeasure/FanSpeedMeasured_i_reg[*]/D}] 8.000
 
 ####################################################################################
-# Constraints from file : 'xpm_cdc_gray.tcl'
+# Constraints from file : 'CustomLogic.xdc'
 ####################################################################################
 
