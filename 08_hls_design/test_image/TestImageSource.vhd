@@ -43,7 +43,7 @@ use ieee.std_logic_textio.all;
 
 entity TestImageSource is
   generic (
-    ENABLE            :     boolean := true;         -- compile-time kill switch
+    ENABLE            :     boolean := false;         -- compile-time kill switch
     STREAM_DATA_WIDTH :     natural := 128;
     WORDS_PER_FRAME   :     natural := 6400;         -- 320*320 / 16
     INIT_FILE         :     string  := "test_image.mem"

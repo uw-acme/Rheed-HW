@@ -176,8 +176,8 @@ architecture behav of CustomLogic is
   -- collector, overlay band) iterates [0..NUM_DET-1], so this is the only knob.
   -- For spatially-distinct detections, replace pDetect with an NMS block that
   -- fills the same det_list interface; nothing else changes.
-  constant NUM_DET            : natural                                          := 5;                                             -- detections processed per frame now
-  constant NUM_DET_MAX        : natural                                          := 5;                                             -- reserved capacity (overlay band, counters)
+  constant NUM_DET            : natural                                          := 3;                                             -- detections processed per frame now
+  constant NUM_DET_MAX        : natural                                          := 3;                                             -- reserved capacity (overlay band, counters)
 
   -- Crop (un-scaled bounding box streamed into gaussian)
   constant CELL_SIZE          : natural                                          := IMG_DIM / GRID_DIM;                            -- 8  (un-scale factor)
@@ -201,6 +201,13 @@ architecture behav of CustomLogic is
   constant GRID_AWIDTH        : natural                                          := integer(ceil(log2(real(GRID_DIM))));           -- 6  (cell col/row 0..39)
   constant CROP_AWIDTH        : natural                                          := integer(ceil(log2(real(CROP_DIM))));           -- 6  (crop col/row 0..47)
   constant GAUS_SLOT_BITS     : natural                                          := integer(ceil(log2(real(NUM_DET_MAX))));        -- 3
+  
+  -- Normalization
+  constant PIXEL_NORM         : natural                                          := 256;  -- pixel / 256 (shift amount)
+  constant NORM_SHIFT         : natural                                          := integer(ceil(log2(real(PIXEL_NORM))));  -- 8
+  constant FOLO_FRAC          : natural                                          := 10;   -- fractional bits of folo
+  constant GAUS_FRAC          : natural                                          := 10;   -- fractional bits of gaus
+
 
   ----------------------------------------------------------------------------
   -- Types
@@ -268,8 +275,8 @@ architecture behav of CustomLogic is
       ap_idle            : out std_logic
     );
   end component gaussian_0;
-
-  component nms_top5 is
+  
+  component nms_top3 is
     generic (
       GRID_W   : integer := 40;
       GRID_H   : integer := 40;
@@ -285,20 +292,45 @@ architecture behav of CustomLogic is
       top_val_0         : out std_logic_vector(15 downto 0);
       top_val_1         : out std_logic_vector(15 downto 0);
       top_val_2         : out std_logic_vector(15 downto 0);
-      top_val_3         : out std_logic_vector(15 downto 0);
-      top_val_4         : out std_logic_vector(15 downto 0);
       top_x_0           : out std_logic_vector(5 downto 0);
       top_x_1           : out std_logic_vector(5 downto 0);
       top_x_2           : out std_logic_vector(5 downto 0);
-      top_x_3           : out std_logic_vector(5 downto 0);
-      top_x_4           : out std_logic_vector(5 downto 0);
       top_y_0           : out std_logic_vector(5 downto 0);
       top_y_1           : out std_logic_vector(5 downto 0);
-      top_y_2           : out std_logic_vector(5 downto 0);
-      top_y_3           : out std_logic_vector(5 downto 0);
-      top_y_4           : out std_logic_vector(5 downto 0)
+      top_y_2           : out std_logic_vector(5 downto 0)
     );
-  end component nms_top5;
+  end component nms_top3;
+
+--  component nms_top5 is
+--    generic (
+--      GRID_W   : integer := 40;
+--      GRID_H   : integer := 40;
+--      MAX_CAND : integer := 256
+--    );
+--    port (
+--      clk               : in  std_logic;
+--      rst_n             : in  std_logic;
+--      tvalid            : in  std_logic;
+--      tdata             : in  std_logic_vector(15 downto 0);
+--      tlast             : in  std_logic;
+--      done              : out std_logic;
+--      top_val_0         : out std_logic_vector(15 downto 0);
+--      top_val_1         : out std_logic_vector(15 downto 0);
+--      top_val_2         : out std_logic_vector(15 downto 0);
+--      top_val_3         : out std_logic_vector(15 downto 0);
+--      top_val_4         : out std_logic_vector(15 downto 0);
+--      top_x_0           : out std_logic_vector(5 downto 0);
+--      top_x_1           : out std_logic_vector(5 downto 0);
+--      top_x_2           : out std_logic_vector(5 downto 0);
+--      top_x_3           : out std_logic_vector(5 downto 0);
+--      top_x_4           : out std_logic_vector(5 downto 0);
+--      top_y_0           : out std_logic_vector(5 downto 0);
+--      top_y_1           : out std_logic_vector(5 downto 0);
+--      top_y_2           : out std_logic_vector(5 downto 0);
+--      top_y_3           : out std_logic_vector(5 downto 0);
+--      top_y_4           : out std_logic_vector(5 downto 0)
+--    );
+--  end component nms_top5;
   
   component TestImageSource is
    generic (
@@ -331,6 +363,20 @@ architecture behav of CustomLogic is
       return v + 1;
     end if;
   end function inc3;
+  
+  -- pixel / PIXEL_NORM
+  function normalization_pix (pix : std_logic_vector; width : natural; frac : natural)
+    return std_logic_vector is
+    variable v : unsigned(width - 1 downto 0);
+  begin
+    v := resize(unsigned(pix), width);
+    if frac >= NORM_SHIFT then
+      v := shift_left(v, frac - NORM_SHIFT);
+    else
+      v := shift_right(v, NORM_SHIFT - frac);
+    end if;
+    return std_logic_vector(v);
+  end function normalization_pix;
 
   ----------------------------------------------------------------------------
   -- Signals
@@ -419,18 +465,18 @@ architecture behav of CustomLogic is
   signal nms_top_val_0         : std_logic_vector(15 downto 0);
   signal nms_top_val_1         : std_logic_vector(15 downto 0);
   signal nms_top_val_2         : std_logic_vector(15 downto 0);
-  signal nms_top_val_3         : std_logic_vector(15 downto 0);
-  signal nms_top_val_4         : std_logic_vector(15 downto 0);
+--  signal nms_top_val_3         : std_logic_vector(15 downto 0);
+--  signal nms_top_val_4         : std_logic_vector(15 downto 0);
   signal nms_top_x_0           : std_logic_vector(5 downto 0);
   signal nms_top_x_1           : std_logic_vector(5 downto 0);
   signal nms_top_x_2           : std_logic_vector(5 downto 0);
-  signal nms_top_x_3           : std_logic_vector(5 downto 0);
-  signal nms_top_x_4           : std_logic_vector(5 downto 0);
+--  signal nms_top_x_3           : std_logic_vector(5 downto 0);
+--  signal nms_top_x_4           : std_logic_vector(5 downto 0);
   signal nms_top_y_0           : std_logic_vector(5 downto 0);
   signal nms_top_y_1           : std_logic_vector(5 downto 0);
   signal nms_top_y_2           : std_logic_vector(5 downto 0);
-  signal nms_top_y_3           : std_logic_vector(5 downto 0);
-  signal nms_top_y_4           : std_logic_vector(5 downto 0);
+--  signal nms_top_y_3           : std_logic_vector(5 downto 0);
+--  signal nms_top_y_4           : std_logic_vector(5 downto 0);
 
   -- Crop sequencer
   signal crop_state           : crop_state_t                                     := XC_IDLE;
@@ -576,10 +622,10 @@ begin
           buf_coords(to_integer(folo_res_ptr))(1).cy    <= unsigned(nms_top_y_1);
           buf_coords(to_integer(folo_res_ptr))(2).cx    <= unsigned(nms_top_x_2);
           buf_coords(to_integer(folo_res_ptr))(2).cy    <= unsigned(nms_top_y_2);
-          buf_coords(to_integer(folo_res_ptr))(3).cx    <= unsigned(nms_top_x_3);
-          buf_coords(to_integer(folo_res_ptr))(3).cy    <= unsigned(nms_top_y_3);
-          buf_coords(to_integer(folo_res_ptr))(4).cx    <= unsigned(nms_top_x_4);
-          buf_coords(to_integer(folo_res_ptr))(4).cy    <= unsigned(nms_top_y_4);
+--          buf_coords(to_integer(folo_res_ptr))(3).cx    <= unsigned(nms_top_x_3);
+--          buf_coords(to_integer(folo_res_ptr))(3).cy    <= unsigned(nms_top_y_3);
+--          buf_coords(to_integer(folo_res_ptr))(4).cx    <= unsigned(nms_top_x_4);
+--          buf_coords(to_integer(folo_res_ptr))(4).cy    <= unsigned(nms_top_y_4);
           folo_res_ptr                                  <= inc3(folo_res_ptr);
         end if;
         
@@ -723,25 +769,28 @@ begin
   end process pCtrl;
 
 
-  uTestImg: component TestImageSource
-  generic map (
-    ENABLE            => true,              -- false => compiles away entirely
-    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
-    WORDS_PER_FRAME   => WORDS_PER_FRAME,
-    INIT_FILE         => "test_image.mem"
-  )
-  port map (
-    clk       => clk250,
-    rst_n     => s_axis_resetn,
-    sw_enable => testimg_en,
-    tvalid    => s_axis_tvalid,
-    tready    => m_axis_tready,
-    sof       => s_axis_tuser(0),
-    tdata_in  => s_axis_tdata,
-    tdata_out => s_axis_tdata_i,
-    injecting => open
-  );
-
+  -- will not properly compile away unless fully commented out and the inout is just straight up connected after as seen below
+  -- this may not be entirely true but the compilation leads to more usage if left in, guess is that it keeps the connection 
+  -- but not the memory
+--  uTestImg: component TestImageSource
+--  generic map (
+--    ENABLE            => false,              -- false => compiles away entirely
+--    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
+--    WORDS_PER_FRAME   => WORDS_PER_FRAME,
+--    INIT_FILE         => "test_image.mem"
+--  )
+--  port map (
+--    clk       => clk250,
+--    rst_n     => s_axis_resetn,
+--    sw_enable => testimg_en,
+--    tvalid    => s_axis_tvalid,
+--    tready    => m_axis_tready,
+--    sof       => s_axis_tuser(0),
+--    tdata_in  => s_axis_tdata,
+--    tdata_out => s_axis_tdata_i,
+--    injecting => open
+--  );
+   s_axis_tdata_i <= s_axis_tdata;
 
 ----------------------------------------------------------------------------
 -- Read-data pipeline register : breaks the BRAM cascade (rd_data0/1/2 mux)
@@ -814,7 +863,8 @@ begin
             
             when F_LOAD =>
               cur_word       <= fb_folo_rd_data_r;                                                                     -- was fb_folo_rd_data
-              folo_in_tdata  <= std_logic_vector(resize(unsigned(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0)), FOLO_OUT_WIDTH));
+              --folo_in_tdata  <= std_logic_vector(resize(unsigned(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0)), FOLO_OUT_WIDTH));
+              folo_in_tdata  <= normalization_pix(fb_folo_rd_data_r(BITS_PER_PIXEL - 1 downto 0), FOLO_OUT_WIDTH, FOLO_FRAC);
               folo_in_tvalid <= '1';
               feed_pix_cnt   <= to_unsigned(WORDS_PER_STREAM - 1, feed_pix_cnt'length);
               feed_state     <= F_RUN;
@@ -832,7 +882,8 @@ begin
                   feed_state                        <= F_WAIT;
                 end if;
               else
-                folo_in_tdata                       <= std_logic_vector(resize(unsigned(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL)), FOLO_OUT_WIDTH));
+                --folo_in_tdata                       <= std_logic_vector(resize(unsigned(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL)), FOLO_OUT_WIDTH));
+                folo_in_tdata                       <= normalization_pix(cur_word(2 * BITS_PER_PIXEL - 1 downto BITS_PER_PIXEL), FOLO_OUT_WIDTH, FOLO_FRAC);
                 cur_word                            <= std_logic_vector(shift_right(unsigned(cur_word), BITS_PER_PIXEL));
                 feed_pix_cnt                        <= feed_pix_cnt - 1;
               end if;
@@ -928,7 +979,38 @@ begin
   --   5 strongest peaks with a minimum pairwise separation (no frame buffer).
   --   Same det_list-shaped output as pDetect; swap in to replace top-N-by-value.
   ----------------------------------------------------------------------------  
-  uNms: component nms_top5
+--  uNms: component nms_top5
+--  generic map (
+--    GRID_W   => GRID_DIM,
+--    GRID_H   => GRID_DIM,
+--    MAX_CAND => 256
+--  )
+--  port map (
+--    clk               => clk250,
+--    rst_n             => s_axis_resetn,
+--    tvalid            => nms_in_tvalid,
+--    tdata             => nms_in_tdata,
+--    tlast             => nms_in_tlast,
+--    done              => nms_done,
+--    top_val_0         => nms_top_val_0,
+--    top_val_1         => nms_top_val_1,
+--    top_val_2         => nms_top_val_2,
+--    top_val_3         => nms_top_val_3,
+--    top_val_4         => nms_top_val_4,
+--    top_x_0           => nms_top_x_0,
+--    top_x_1           => nms_top_x_1,
+--    top_x_2           => nms_top_x_2,
+--    top_x_3           => nms_top_x_3,
+--    top_x_4           => nms_top_x_4,
+--    top_y_0           => nms_top_y_0,
+--    top_y_1           => nms_top_y_1,
+--    top_y_2           => nms_top_y_2,
+--    top_y_3           => nms_top_y_3,
+--    top_y_4           => nms_top_y_4
+--  );
+
+
+  uNms: component nms_top3
   generic map (
     GRID_W   => GRID_DIM,
     GRID_H   => GRID_DIM,
@@ -944,19 +1026,14 @@ begin
     top_val_0         => nms_top_val_0,
     top_val_1         => nms_top_val_1,
     top_val_2         => nms_top_val_2,
-    top_val_3         => nms_top_val_3,
-    top_val_4         => nms_top_val_4,
     top_x_0           => nms_top_x_0,
     top_x_1           => nms_top_x_1,
     top_x_2           => nms_top_x_2,
-    top_x_3           => nms_top_x_3,
-    top_x_4           => nms_top_x_4,
     top_y_0           => nms_top_y_0,
     top_y_1           => nms_top_y_1,
-    top_y_2           => nms_top_y_2,
-    top_y_3           => nms_top_y_3,
-    top_y_4           => nms_top_y_4
+    top_y_2           => nms_top_y_2
   );
+  
   
   ----------------------------------------------------------------------------
   -- Detector : streaming top-5 argmax over the 1600 unsigned FOLO values, in
@@ -1240,7 +1317,8 @@ begin
               else
                 pix8                                := (others => '0');
               end if;
-              gaus_in_tdata                         <= std_logic_vector(resize(unsigned(pix8), GAUS_IN_WIDTH));
+              --gaus_in_tdata                         <= std_logic_vector(resize(unsigned(pix8), GAUS_IN_WIDTH));
+              gaus_in_tdata                         <= normalization_pix(pix8, GAUS_IN_WIDTH, GAUS_FRAC);
               gaus_in_tvalid                        <= '1';
               crop_state                            <= XC_DRIVE;
             end if; 
@@ -1463,7 +1541,6 @@ begin
   gaus_ovl_sel <= '1' when (gaus_armed = '1' and cur_idx >= to_unsigned(GAUS_OVL_START, FB_AWORD) and cur_idx < to_unsigned(GAUS_OVL_START + NUM_DET, FB_AWORD)) else '0';
 
   m_axis_tdata <= gaus_word when gaus_ovl_sel = '1' else res_rd_data when overlay_sel = '1' else s_axis_tdata_i;
-
   -- Metadata passthrough
   m_mdata_StreamId                                  <= s_mdata_StreamId;
   m_mdata_SourceTag                                 <= s_mdata_SourceTag;
