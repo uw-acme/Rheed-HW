@@ -176,8 +176,8 @@ architecture behav of CustomLogic is
   -- collector, overlay band) iterates [0..NUM_DET-1], so this is the only knob.
   -- For spatially-distinct detections, replace pDetect with an NMS block that
   -- fills the same det_list interface; nothing else changes.
-  constant NUM_DET            : natural                                          := 5;                                             -- detections processed per frame now
-  constant NUM_DET_MAX        : natural                                          := 5;                                             -- reserved capacity (overlay band, counters)
+  constant NUM_DET            : natural                                          := 3;                                             -- detections processed per frame now
+  constant NUM_DET_MAX        : natural                                          := 3;                                             -- reserved capacity (overlay band, counters)
 
   -- Crop (un-scaled bounding box streamed into gaussian)
   constant CELL_SIZE          : natural                                          := IMG_DIM / GRID_DIM;                            -- 8  (un-scale factor)
@@ -770,26 +770,27 @@ begin
 
 
   -- will not properly compile away unless fully commented out and the inout is just straight up connected after as seen below
-  -- this may not be entirely true but the compilation leads to more usage if left in
-  uTestImg: component TestImageSource
-  generic map (
-    ENABLE            => false,              -- false => compiles away entirely
-    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
-    WORDS_PER_FRAME   => WORDS_PER_FRAME,
-    INIT_FILE         => "test_image.mem"
-  )
-  port map (
-    clk       => clk250,
-    rst_n     => s_axis_resetn,
-    sw_enable => testimg_en,
-    tvalid    => s_axis_tvalid,
-    tready    => m_axis_tready,
-    sof       => s_axis_tuser(0),
-    tdata_in  => s_axis_tdata,
-    tdata_out => s_axis_tdata_i,
-    injecting => open
-  );
---   s_axis_tdata_i <= s_axis_tdata;
+  -- this may not be entirely true but the compilation leads to more usage if left in, guess is that it keeps the connection 
+  -- but not the memory
+--  uTestImg: component TestImageSource
+--  generic map (
+--    ENABLE            => false,              -- false => compiles away entirely
+--    STREAM_DATA_WIDTH => STREAM_DATA_WIDTH,
+--    WORDS_PER_FRAME   => WORDS_PER_FRAME,
+--    INIT_FILE         => "test_image.mem"
+--  )
+--  port map (
+--    clk       => clk250,
+--    rst_n     => s_axis_resetn,
+--    sw_enable => testimg_en,
+--    tvalid    => s_axis_tvalid,
+--    tready    => m_axis_tready,
+--    sof       => s_axis_tuser(0),
+--    tdata_in  => s_axis_tdata,
+--    tdata_out => s_axis_tdata_i,
+--    injecting => open
+--  );
+   s_axis_tdata_i <= s_axis_tdata;
 
 ----------------------------------------------------------------------------
 -- Read-data pipeline register : breaks the BRAM cascade (rd_data0/1/2 mux)
